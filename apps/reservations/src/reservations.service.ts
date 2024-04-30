@@ -11,7 +11,7 @@ export class ReservationsService {
     private readonly reservationsRepository: ReservationsRepository
   ){}
 
-  create(createReservationDto: CreateReservationDto) {
+  create(createReservationDto: CreateReservationDto, userId: number) {
     const reservation = new Reservation({
       ...createReservationDto,
       timestamp: new Date(),

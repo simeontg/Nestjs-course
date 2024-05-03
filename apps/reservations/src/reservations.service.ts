@@ -1,39 +1,51 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
 import { ReservationsRepository } from './reservations.repository';
 import { Reservation } from './entities/reservation.entity';
+import { PAYMENTS_SERVICE } from '@app/common';
+import { ClientProxy } from '@nestjs/microservices';
+import { map } from 'rxjs';
 
 @Injectable()
 export class ReservationsService {
 
   constructor(
-    private readonly reservationsRepository: ReservationsRepository
+    private readonly reservationsRepository: ReservationsRepository,
+    @Inject(PAYMENTS_SERVICE) private readonly paymentsService: ClientProxy
   ){}
 
-  create(createReservationDto: CreateReservationDto, userId: number) {
-    const reservation = new Reservation({
-      ...createReservationDto,
-      timestamp: new Date(),
-      userId: '123',
-    });
-
-    return this.reservationsRepository.create(reservation);
+  async create(createReservationDto: CreateReservationDto, userId: number) {
+    return this.paymentsService
+      .send('create_charge', createReservationDto.charge)
+      .pipe(
+        map((res) => {
+          const reservation = new Reservation({
+            ...createReservationDto,
+            timestamp: new Date(),
+            userId,
+            invoiceId: res.id
+          });
+      
+          return this.reservationsRepository.create(reservation);
+        })
+      )
+    
   }
 
-  findAll() {
+  async findAll() {
     return this.reservationsRepository.find({});
   }
 
-  findOne(id: number) {
+  async findOne(id: number) {
     return this.reservationsRepository.findOne({ id });
   }
 
-  update(id: number, updateReservationDto: UpdateReservationDto) {
+  async update(id: number, updateReservationDto: UpdateReservationDto) {
     return this.reservationsRepository.findOneAndUpdate({id}, updateReservationDto)
   }
 
-  remove(id: number) {
+  async remove(id: number) {
     return this.reservationsRepository.findOneAndDelete({ id });
   }
 }
